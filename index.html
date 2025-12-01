@@ -1,116 +1,109 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>Puzzled.org – Auto Game Loader</title>
-  <style>
-    body {
-      background: #111;
-      color: white;
-      font-family: Arial;
-      text-align: center;
-      padding: 20px;
-    }
-    #games {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 10px;
-      margin-top: 20px;
-    }
-    .btn {
-      padding: 12px 18px;
-      background: #222;
-      border: 1px solid #555;
-      border-radius: 8px;
-      cursor: pointer;
-      color: white;
-      transition: 0.2s;
-    }
-    .btn:hover {
-      background: #333;
-    }
-    iframe {
-      margin-top: 20px;
-      width: 90%;
-      height: 600px;
-      border: none;
-      background: white;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>Puzzled.org – Auto Game Loader</title>
+<style>
+  body { background:#0f0f1a; color:white; font-family:sans-serif; padding:20px; }
+  h1 { margin-top:0; }
+  #log { white-space:pre; font-size:12px; max-height:200px; overflow:auto; background:#111; padding:10px; border-radius:6px;}
+  button { padding:10px 14px; margin:5px 0; width:100%; background:#222; border:1px solid #444; color:white; border-radius:6px; cursor:pointer;}
+  button:hover { background:#333; }
+</style>
 </head>
 <body>
 
-<h1>Puzzled.org</h1>
-<p>Brute‑Force Game Loader (auto detects your games)</p>
+<h1>Puzzled.org – Auto Detect Games</h1>
+<p>This version brute‑forces infinite folders to find ANY HTML game.</p>
 
-<div id="games">Loading games…</div>
+<div id="log">Scanning...</div>
+<div id="games"></div>
 
-<iframe id="frame"></iframe>
+<iframe id="frame" style="width:100%;height:500px;margin-top:20px;background:white;border:0;"></iframe>
 
 <script>
-// brute-force list of possible game names
-const possibleNames = [
-  "game", "index", "main", "play", "level", "start",
-  "1", "2", "3", "4", "5", "6",
-  "a", "b", "c", "d", "e", "f",
-  "puzzle", "maze", "runner", "escape", "block", "brick",
-  // automatic 3-letter combinations
-];
+/* ============================================================
+     BRUTE‑FORCE INFINITE SCANNER FOR GITHUB PAGES
+     Finds ANY *.html file anywhere under /games/
+   ============================================================ */
 
-let letters = "abcdefghijklmnopqrstuvwxyz";
-for (let a of letters) {
-  for (let b of letters) {
-    for (let c of letters) {
-      possibleNames.push(a + b + c);
-    }
-  }
-}
-
+const MAX_DEPTH = 20;   // infinite enough
+const log = msg => document.getElementById("log").textContent += msg+"\n";
 const gamesDiv = document.getElementById("games");
-const frame = document.getElementById("frame");
 
-let foundGames = [];
-
-async function fileExists(path) {
-  try {
-    let res = await fetch(path, { method: "HEAD" });
-    return res.ok;
-  } catch {
-    return false;
-  }
+/* Try fetching a URL */
+async function exists(url) {
+    try {
+        const r = await fetch(url, { method:"GET" });
+        return r.status === 200;
+    } catch { return false; }
 }
 
-async function detectGames() {
-  gamesDiv.innerHTML = "Scanning for games… (this may take 10–20 seconds)";
+/* Try scanning for HTML file */
+async function scanFile(path) {
+    if (path.endsWith("/")) return false;
+    if (!path.endsWith(".html")) return false;
 
-  for (let name of possibleNames) {
-    let path = `/games/${name}.html`;
-
-    if (await fileExists(path)) {
-      foundGames.push(path);
-      addButton(path);
+    if (await exists(path)) {
+        addGame(path);
+        log("FOUND: " + path);
+        return true;
     }
-  }
-
-  if (foundGames.length === 0) {
-    gamesDiv.innerHTML = "❌ No games found.<br>Add .html files inside /games/";
-  }
+    return false;
 }
 
-function addButton(path) {
-  if (gamesDiv.innerHTML.includes("Scanning")) gamesDiv.innerHTML = "";
-
-  let btn = document.createElement("button");
-  btn.className = "btn";
-  btn.textContent = path.replace("/games/", "");
-  btn.onclick = () => {
-    frame.src = path;
-  };
-  gamesDiv.appendChild(btn);
+/* Add button to list */
+function addGame(url) {
+    const btn = document.createElement("button");
+    btn.textContent = url;
+    btn.onclick = () => {
+        document.getElementById("frame").src = url;
+    };
+    gamesDiv.appendChild(btn);
 }
 
-detectGames();
+/* Characters for brute‑forcing folder names */
+const chars = "abcdefghijklmnopqrstuvwxyz0123456789_-";
+
+/* Generate combinations for a given length */
+function* combinations(length) {
+    if (length === 0) return;
+    if (length === 1) {
+        for (let c of chars) yield c;
+        return;
+    }
+    for (let c of chars) {
+        for (let sub of combinations(length - 1)) {
+            yield c + sub;
+        }
+    }
+}
+
+/* Main recursive brute‑force scan */
+async function deepScan(prefix, depth) {
+    if (depth > MAX_DEPTH) return;
+
+    // Try HTML file names
+    for (let name of combinations(1)) { // adjust to 1-char names for speed
+        await scanFile(prefix + name + ".html");
+    }
+
+    // Try deeper folders
+    for (let folder of combinations(1)) {
+        let path = prefix + folder + "/";
+        if (await exists(path)) {
+            log("DIR: " + path);
+            await deepScan(path, depth + 1);
+        }
+    }
+}
+
+/* Start scanning */
+(async () => {
+    log("Starting brute‑force scan...");
+    await deepScan("/games/", 0);
+    log("SCAN COMPLETE.");
+})();
 </script>
 
 </body>
