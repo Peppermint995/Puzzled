@@ -1,1 +1,6 @@
-
+[
+  { "name": "Maze Runner", "file": "maze-runner.html" },
+  { "name": "Block Stack", "file": "block-stack.html" },
+  "puzzle-tiles.html",
+  "memory-match.html"
+]
