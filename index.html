@@ -1,109 +1,184 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Puzzled.org – Auto Game Loader</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Puzzled.org – Auto Game Scanner</title>
+
 <style>
-  body { background:#0f0f1a; color:white; font-family:sans-serif; padding:20px; }
-  h1 { margin-top:0; }
-  #log { white-space:pre; font-size:12px; max-height:200px; overflow:auto; background:#111; padding:10px; border-radius:6px;}
-  button { padding:10px 14px; margin:5px 0; width:100%; background:#222; border:1px solid #444; color:white; border-radius:6px; cursor:pointer;}
-  button:hover { background:#333; }
+  body {
+    margin: 0; font-family: Arial, sans-serif; background: #0b1220; color: #fff;
+  }
+  header {
+    padding: 20px; text-align: center; font-size: 32px; font-weight: bold;
+    background: #111a33; box-shadow: 0 3px 10px #0008;
+  }
+  #status { text-align: center; margin-top: 10px; opacity: .8; }
+
+  #controls {
+    text-align: center; margin: 20px;
+  }
+  button {
+    padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer;
+    font-size: 16px; font-weight: bold;
+  }
+  #stopBtn { background: #ff4040; color: #fff; margin-left: 10px; }
+
+  #grid {
+    display: grid; grid-template-columns: repeat(auto-fill,minmax(200px,1fr));
+    gap: 20px; padding: 20px; margin-top: 20px;
+  }
+  .card {
+    background: #1b2338; padding: 20px; border-radius: 12px; text-align: center;
+    box-shadow: 0 4px 10px #0007; cursor: pointer; transition: .2s;
+  }
+  .card:hover { transform: scale(1.03); background: #253154; }
+  .thumb {
+    width: 100%; height: 120px; background: #0004;
+    border-radius: 8px; margin-bottom: 10px;
+    background-image: url("data:image/svg+xml,%3Csvg width='200' height='120' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='200' height='120' fill='%23111a33'/%3E%3Ctext x='50%' y='50%' font-size='16' fill='white' dominant-baseline='middle' text-anchor='middle'%3EHTML GAME%3C/text%3E%3C/svg%3E");
+    background-size: cover;
+  }
+
+  .progress {
+    width: 90%; background: #222; height: 20px; border-radius: 8px;
+    margin: auto; overflow: hidden; margin-top: 10px;
+  }
+  .bar {
+    height: 100%; width: 0%; background: #4ca3ff; transition: width 0.1s;
+  }
 </style>
 </head>
 <body>
 
-<h1>Puzzled.org – Auto Detect Games</h1>
-<p>This version brute‑forces infinite folders to find ANY HTML game.</p>
+<header>Puzzled.org — Auto Game Scanner</header>
 
-<div id="log">Scanning...</div>
-<div id="games"></div>
+<div id="status">Loading scanner…</div>
 
-<iframe id="frame" style="width:100%;height:500px;margin-top:20px;background:white;border:0;"></iframe>
+<div id="controls">
+  <button id="stopBtn">Stop Scan</button>
+</div>
+
+<div class="progress">
+  <div class="bar" id="bar"></div>
+</div>
+
+<div id="grid"></div>
 
 <script>
 /* ============================================================
-     BRUTE‑FORCE INFINITE SCANNER FOR GITHUB PAGES
-     Finds ANY *.html file anywhere under /games/
+      FAST BRUTE-FORCE HTML SCANNER WITH WEB WORKERS
    ============================================================ */
+let stop = false;
+const bar = document.getElementById("bar");
+const grid = document.getElementById("grid");
+const status = document.getElementById("status");
 
-const MAX_DEPTH = 20;   // infinite enough
-const log = msg => document.getElementById("log").textContent += msg+"\n";
-const gamesDiv = document.getElementById("games");
+// possible file names to brute force
+const chars = "abcdefghijklmnopqrstuvwxyz0123456789-";
+let combos = [];
 
-/* Try fetching a URL */
-async function exists(url) {
+// generate brute-force potential names (1–4 chars)
+for (let a of chars) combos.push(a);
+for (let a of chars) for (let b of chars) combos.push(a+b);
+for (let a of chars) for (let b of chars) for (let c of chars) combos.push(a+b+c);
+for (let a of chars) for (let b of chars) for (let c of chars) for (let d of chars) combos.push(a+b+c+d);
+
+const workerCode = `
+self.onmessage = async (msg)=>{
+  const names = msg.data;
+  for (let name of names) {
+    if (self.stopFlag) break;
+    const url = "/games/" + name + ".html";
     try {
-        const r = await fetch(url, { method:"GET" });
-        return r.status === 200;
-    } catch { return false; }
+      const res = await fetch(url,{method:"HEAD"});
+      if(res.ok) self.postMessage({found:url});
+    } catch(e){}
+  }
+  self.postMessage({done:true});
+};
+`;
+const blob = new Blob([workerCode], { type: "application/javascript" });
+const workerURL = URL.createObjectURL(blob);
+
+function addGameCard(url) {
+  const div = document.createElement("div");
+  div.className = "card";
+  div.onclick = () => window.open(url, "_blank");
+  div.innerHTML = `
+    <div class="thumb"></div>
+    <strong>${url.split("/").pop()}</strong>
+  `;
+  grid.appendChild(div);
 }
 
-/* Try scanning for HTML file */
-async function scanFile(path) {
-    if (path.endsWith("/")) return false;
-    if (!path.endsWith(".html")) return false;
-
-    if (await exists(path)) {
-        addGame(path);
-        log("FOUND: " + path);
-        return true;
-    }
-    return false;
+// save results so next load is instant
+function saveCache(list) {
+  localStorage.setItem("puzzled_cache", JSON.stringify(list));
+}
+function loadCache() {
+  try {
+    return JSON.parse(localStorage.getItem("puzzled_cache") || "[]");
+  } catch {
+    return [];
+  }
 }
 
-/* Add button to list */
-function addGame(url) {
-    const btn = document.createElement("button");
-    btn.textContent = url;
-    btn.onclick = () => {
-        document.getElementById("frame").src = url;
+async function runScan() {
+  stop = false;
+  let found = loadCache();
+  found.forEach(addGameCard);
+
+  status.textContent = "Scanning /games/...";
+
+  const chunkSize = 300; // per worker
+  let index = 0;
+  let activeWorkers = 0;
+
+  while (index < combos.length && !stop) {
+    const chunk = combos.slice(index, index + chunkSize);
+    index += chunkSize;
+
+    const worker = new Worker(workerURL);
+    activeWorkers++;
+
+    worker.onmessage = (msg) => {
+      if (msg.data.found) {
+        if (!found.includes(msg.data.found)) {
+          found.push(msg.data.found);
+          addGameCard(msg.data.found);
+          saveCache(found);
+        }
+      }
+      if (msg.data.done) activeWorkers--;
     };
-    gamesDiv.appendChild(btn);
+
+    worker.postMessage(chunk);
+
+    // update progress bar
+    bar.style.width = ((index / combos.length) * 100).toFixed(1) + "%";
+
+    await new Promise((res) => setTimeout(res, 30));
+  }
+
+  // wait for workers to finish
+  const wait = setInterval(() => {
+    if (activeWorkers === 0) {
+      clearInterval(wait);
+      status.textContent = stop
+        ? "Scan stopped."
+        : `Scan complete — ${found.length} game(s) found`;
+    }
+  }, 200);
 }
 
-/* Characters for brute‑forcing folder names */
-const chars = "abcdefghijklmnopqrstuvwxyz0123456789_-";
+// Stop button
+document.getElementById("stopBtn").onclick = () => {
+  stop = true;
+  status.textContent = "Stopping…";
+};
 
-/* Generate combinations for a given length */
-function* combinations(length) {
-    if (length === 0) return;
-    if (length === 1) {
-        for (let c of chars) yield c;
-        return;
-    }
-    for (let c of chars) {
-        for (let sub of combinations(length - 1)) {
-            yield c + sub;
-        }
-    }
-}
-
-/* Main recursive brute‑force scan */
-async function deepScan(prefix, depth) {
-    if (depth > MAX_DEPTH) return;
-
-    // Try HTML file names
-    for (let name of combinations(1)) { // adjust to 1-char names for speed
-        await scanFile(prefix + name + ".html");
-    }
-
-    // Try deeper folders
-    for (let folder of combinations(1)) {
-        let path = prefix + folder + "/";
-        if (await exists(path)) {
-            log("DIR: " + path);
-            await deepScan(path, depth + 1);
-        }
-    }
-}
-
-/* Start scanning */
-(async () => {
-    log("Starting brute‑force scan...");
-    await deepScan("/games/", 0);
-    log("SCAN COMPLETE.");
-})();
+window.onload = runScan;
 </script>
 
 </body>
