@@ -1,76 +1,116 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>Puzzled.org</title>
-<style>
-  body {
-    background: #10131a;
-    color: #ececec;
-    font-family: Arial, sans-serif;
-    padding: 20px;
-  }
-  h1 { text-align: center; }
-  .game-btn {
-    display: block;
-    width: 100%;
-    margin: 8px 0;
-    padding: 12px;
-    background: #1c2330;
-    color: white;
-    border: 1px solid #333;
-    border-radius: 8px;
-    cursor: pointer;
-    text-align: left;
-    transition: 0.2s;
-  }
-  .game-btn:hover {
-    background: #273246;
-  }
-</style>
+  <meta charset="UTF-8">
+  <title>Puzzled.org – Auto Game Loader</title>
+  <style>
+    body {
+      background: #111;
+      color: white;
+      font-family: Arial;
+      text-align: center;
+      padding: 20px;
+    }
+    #games {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    .btn {
+      padding: 12px 18px;
+      background: #222;
+      border: 1px solid #555;
+      border-radius: 8px;
+      cursor: pointer;
+      color: white;
+      transition: 0.2s;
+    }
+    .btn:hover {
+      background: #333;
+    }
+    iframe {
+      margin-top: 20px;
+      width: 90%;
+      height: 600px;
+      border: none;
+      background: white;
+    }
+  </style>
 </head>
 <body>
 
 <h1>Puzzled.org</h1>
-<p style="text-align:center">Choose a game:</p>
+<p>Brute‑Force Game Loader (auto detects your games)</p>
 
-<div id="games"></div>
+<div id="games">Loading games…</div>
+
+<iframe id="frame"></iframe>
 
 <script>
-// folder with your games
-const gameFolder = "games/";
+// brute-force list of possible game names
+const possibleNames = [
+  "game", "index", "main", "play", "level", "start",
+  "1", "2", "3", "4", "5", "6",
+  "a", "b", "c", "d", "e", "f",
+  "puzzle", "maze", "runner", "escape", "block", "brick",
+  // automatic 3-letter combinations
+];
 
-// Try loading the folder itself
-fetch(gameFolder)
-  .then(res => res.text())
-  .then(html => {
-      const div = document.createElement("div");
-      div.innerHTML = html;
+let letters = "abcdefghijklmnopqrstuvwxyz";
+for (let a of letters) {
+  for (let b of letters) {
+    for (let c of letters) {
+      possibleNames.push(a + b + c);
+    }
+  }
+}
 
-      // find all links to .html files
-      const links = [...div.querySelectorAll("a")]
-          .map(a => a.getAttribute("href"))
-          .filter(h => h && h.endsWith(".html"));
+const gamesDiv = document.getElementById("games");
+const frame = document.getElementById("frame");
 
-      const container = document.getElementById("games");
+let foundGames = [];
 
-      if (links.length === 0) {
-        container.innerHTML = "<p>No games found in /games/</p>";
-        return;
-      }
+async function fileExists(path) {
+  try {
+    let res = await fetch(path, { method: "HEAD" });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
 
-      links.forEach(file => {
-        const btn = document.createElement("button");
-        btn.className = "game-btn";
-        btn.textContent = file.replace(".html", "");
-        btn.onclick = () => window.location.href = gameFolder + file;
-        container.appendChild(btn);
-      });
-  })
-  .catch(err => {
-      document.getElementById("games").innerHTML =
-        "<p>Unable to load games folder.</p>";
-  });
+async function detectGames() {
+  gamesDiv.innerHTML = "Scanning for games… (this may take 10–20 seconds)";
+
+  for (let name of possibleNames) {
+    let path = `/games/${name}.html`;
+
+    if (await fileExists(path)) {
+      foundGames.push(path);
+      addButton(path);
+    }
+  }
+
+  if (foundGames.length === 0) {
+    gamesDiv.innerHTML = "❌ No games found.<br>Add .html files inside /games/";
+  }
+}
+
+function addButton(path) {
+  if (gamesDiv.innerHTML.includes("Scanning")) gamesDiv.innerHTML = "";
+
+  let btn = document.createElement("button");
+  btn.className = "btn";
+  btn.textContent = path.replace("/games/", "");
+  btn.onclick = () => {
+    frame.src = path;
+  };
+  gamesDiv.appendChild(btn);
+}
+
+detectGames();
 </script>
 
 </body>
