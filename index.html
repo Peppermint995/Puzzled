@@ -3,182 +3,309 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Puzzled.org – Auto Game Scanner</title>
+<title>Puzzled.org — Auto Game Scanner</title>
 
 <style>
-  body {
-    margin: 0; font-family: Arial, sans-serif; background: #0b1220; color: #fff;
-  }
-  header {
-    padding: 20px; text-align: center; font-size: 32px; font-weight: bold;
-    background: #111a33; box-shadow: 0 3px 10px #0008;
-  }
-  #status { text-align: center; margin-top: 10px; opacity: .8; }
+/* ---------- THEMES ---------- */
+:root {
+  --bg: #0a0a0f;
+  --card: #11151f;
+  --text: #eee;
+  --accent: #4da3ff;
+  --glass: rgba(255,255,255,0.05);
+  --border: rgba(255,255,255,0.08);
+  --blur: blur(8px);
+}
 
-  #controls {
-    text-align: center; margin: 20px;
-  }
-  button {
-    padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer;
-    font-size: 16px; font-weight: bold;
-  }
-  #stopBtn { background: #ff4040; color: #fff; margin-left: 10px; }
+body.neon {
+  --bg: #02030e;
+  --card: #03051a;
+  --text: #7df9ff;
+  --accent: #00eaff;
+}
 
-  #grid {
-    display: grid; grid-template-columns: repeat(auto-fill,minmax(200px,1fr));
-    gap: 20px; padding: 20px; margin-top: 20px;
-  }
-  .card {
-    background: #1b2338; padding: 20px; border-radius: 12px; text-align: center;
-    box-shadow: 0 4px 10px #0007; cursor: pointer; transition: .2s;
-  }
-  .card:hover { transform: scale(1.03); background: #253154; }
-  .thumb {
-    width: 100%; height: 120px; background: #0004;
-    border-radius: 8px; margin-bottom: 10px;
-    background-image: url("data:image/svg+xml,%3Csvg width='200' height='120' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='200' height='120' fill='%23111a33'/%3E%3Ctext x='50%' y='50%' font-size='16' fill='white' dominant-baseline='middle' text-anchor='middle'%3EHTML GAME%3C/text%3E%3C/svg%3E");
-    background-size: cover;
-  }
+body.glass {
+  --bg: #0a0a0a;
+  --card: rgba(255,255,255,0.15);
+  --text: #fff;
+  --accent: #80c0ff;
+  --border: rgba(255,255,255,0.2);
+  --blur: blur(16px);
+}
 
-  .progress {
-    width: 90%; background: #222; height: 20px; border-radius: 8px;
-    margin: auto; overflow: hidden; margin-top: 10px;
-  }
-  .bar {
-    height: 100%; width: 0%; background: #4ca3ff; transition: width 0.1s;
-  }
+/* ---------- GENERAL UI ---------- */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+header {
+  text-align: center;
+  padding: 20px;
+  font-size: 30px;
+  font-weight: bold;
+}
+
+#loader {
+  width: 100%;
+  text-align: center;
+  font-size: 18px;
+  margin-top: 20px;
+}
+
+.progress {
+  width: 80%;
+  margin: 10px auto;
+  height: 20px;
+  background: #333;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.bar {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  transition: width 0.1s;
+}
+
+/* ---------- GAME GRID ---------- */
+#games {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
+  gap: 18px;
+  padding: 20px;
+}
+
+.game-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 15px;
+  border-radius: 12px;
+  cursor: pointer;
+  backdrop-filter: var(--blur);
+  transition: 0.2s;
+}
+.game-card:hover {
+  transform: scale(1.05);
+  border-color: var(--accent);
+}
+
+.game-logo {
+  width: 100%;
+  height: 120px;
+  background: #000;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  object-fit: contain;
+}
+
+/* ---------- SETTINGS PANEL ---------- */
+#panel {
+  position: fixed;
+  top: 0; right: 0;
+  width: 300px;
+  height: 100vh;
+  background: var(--card);
+  border-left: 1px solid var(--border);
+  padding: 15px;
+  overflow-y: auto;
+}
+input, button, select {
+  width: 100%;
+  padding: 10px;
+  margin-top: 12px;
+  border: none;
+  border-radius: 8px;
+}
+button {
+  background: var(--accent);
+  color: #000;
+  font-weight: bold;
+}
 </style>
 </head>
-<body>
 
+<body class="dark">
 <header>Puzzled.org — Auto Game Scanner</header>
 
-<div id="status">Loading scanner…</div>
+<div id="loader">Scanning games…</div>
+<div class="progress"><div class="bar" id="progressBar"></div></div>
 
-<div id="controls">
-  <button id="stopBtn">Stop Scan</button>
+<div id="games"></div>
+
+<!-- SETTINGS PANEL -->
+<div id="panel">
+  <h3>Settings</h3>
+  <select id="themeSelect">
+    <option value="dark">Dark</option>
+    <option value="neon">Neon</option>
+    <option value="glass">Glass</option>
+  </select>
+
+  <button id="stopScan">Stop Scan</button>
+  <button id="rescan">Rescan</button>
+  <button id="clearDB">Reset Database</button>
 </div>
-
-<div class="progress">
-  <div class="bar" id="bar"></div>
-</div>
-
-<div id="grid"></div>
 
 <script>
-/* ============================================================
-      FAST BRUTE-FORCE HTML SCANNER WITH WEB WORKERS
-   ============================================================ */
-let stop = false;
-const bar = document.getElementById("bar");
-const grid = document.getElementById("grid");
-const status = document.getElementById("status");
-
-// possible file names to brute force
-const chars = "abcdefghijklmnopqrstuvwxyz0123456789-";
-let combos = [];
-
-// generate brute-force potential names (1–4 chars)
-for (let a of chars) combos.push(a);
-for (let a of chars) for (let b of chars) combos.push(a+b);
-for (let a of chars) for (let b of chars) for (let c of chars) combos.push(a+b+c);
-for (let a of chars) for (let b of chars) for (let c of chars) for (let d of chars) combos.push(a+b+c+d);
-
+/* ================================================================
+     WORKER CODE — Encoded as a Blob so no worker.js file needed!
+================================================================ */
 const workerCode = `
-self.onmessage = async (msg)=>{
-  const names = msg.data;
-  for (let name of names) {
-    if (self.stopFlag) break;
-    const url = "/games/" + name + ".html";
-    try {
-      const res = await fetch(url,{method:"HEAD"});
-      if(res.ok) self.postMessage({found:url});
-    } catch(e){}
-  }
-  self.postMessage({done:true});
+self.onmessage = async e=>{
+  const {file} = e.data;
+  try{
+    const r = await fetch(file,{method:'HEAD'});
+    if(r.ok){ self.postMessage({found:true,file}); }
+    else    { self.postMessage({found:false}); }
+  }catch(err){ self.postMessage({found:false}); }
 };
 `;
-const blob = new Blob([workerCode], { type: "application/javascript" });
-const workerURL = URL.createObjectURL(blob);
 
-function addGameCard(url) {
-  const div = document.createElement("div");
-  div.className = "card";
-  div.onclick = () => window.open(url, "_blank");
-  div.innerHTML = `
-    <div class="thumb"></div>
-    <strong>${url.split("/").pop()}</strong>
-  `;
-  grid.appendChild(div);
-}
+const workerBlob = new Blob([workerCode], {type: "application/javascript"});
+const workerURL = URL.createObjectURL(workerBlob);
 
-// save results so next load is instant
-function saveCache(list) {
-  localStorage.setItem("puzzled_cache", JSON.stringify(list));
-}
-function loadCache() {
-  try {
-    return JSON.parse(localStorage.getItem("puzzled_cache") || "[]");
-  } catch {
-    return [];
-  }
-}
+/* ================================================================
+     MAIN SCANNER LOGIC
+================================================================ */
+const exts = [".html",".htm",".zip",".js",".wasm"];
+const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789-_";
+let scanning = true;
+const maxLength = 12;      // brute force length
+const workers = [];
+const THREADS = 8;
 
-async function runScan() {
-  stop = false;
-  let found = loadCache();
-  found.forEach(addGameCard);
+const db = JSON.parse(localStorage.getItem("puzzledDB") || "{}");
 
-  status.textContent = "Scanning /games/...";
+function saveDB(){ localStorage.setItem("puzzledDB",JSON.stringify(db)); }
 
-  const chunkSize = 300; // per worker
-  let index = 0;
-  let activeWorkers = 0;
-
-  while (index < combos.length && !stop) {
-    const chunk = combos.slice(index, index + chunkSize);
-    index += chunkSize;
-
-    const worker = new Worker(workerURL);
-    activeWorkers++;
-
-    worker.onmessage = (msg) => {
-      if (msg.data.found) {
-        if (!found.includes(msg.data.found)) {
-          found.push(msg.data.found);
-          addGameCard(msg.data.found);
-          saveCache(found);
-        }
-      }
-      if (msg.data.done) activeWorkers--;
-    };
-
-    worker.postMessage(chunk);
-
-    // update progress bar
-    bar.style.width = ((index / combos.length) * 100).toFixed(1) + "%";
-
-    await new Promise((res) => setTimeout(res, 30));
-  }
-
-  // wait for workers to finish
-  const wait = setInterval(() => {
-    if (activeWorkers === 0) {
-      clearInterval(wait);
-      status.textContent = stop
-        ? "Scan stopped."
-        : `Scan complete — ${found.length} game(s) found`;
+function generateNames() {
+  const out = ["index","game","play","start","main","run"];
+  for (let i=0; i<alphabet.length; i++) {
+    for (let j=0; j<alphabet.length; j++) {
+      out.push(alphabet[i] + alphabet[j]);
     }
-  }, 200);
+  }
+  return out;
 }
 
-// Stop button
-document.getElementById("stopBtn").onclick = () => {
-  stop = true;
-  status.textContent = "Stopping…";
+const names = generateNames();
+const totalChecks = names.length * exts.length;
+let completed = 0;
+
+function updateProgress(){
+  const pct = (completed / totalChecks) * 100;
+  progressBar.style.width = pct + "%";
+  loader.innerText = `Scanning… ${Math.floor(pct)}%`;
+}
+
+function detectLogo(gameURL){
+  return gameURL.replace(/\.(html|htm|js|zip|wasm)$/,"")+".png";
+}
+
+function addGameCard(name, url){
+  if(db[name]?.hidden) return;  
+
+  const card = document.createElement("div");
+  card.className = "game-card";
+
+  const img = document.createElement("img");
+  img.className = "game-logo";
+  img.src = detectLogo(url);
+  img.onerror = ()=>{ img.style.display="none"; };
+
+  const title = document.createElement("div");
+  title.innerText = name;
+
+  card.appendChild(img);
+  card.appendChild(title);
+
+  card.onclick = ()=>{
+    localStorage.setItem("lastGame", url);
+    window.location.href = url;
+  };
+
+  games.appendChild(card);
+}
+
+async function startScan(){
+  scanning = true;
+
+  // create workers
+  for(let i=0;i<THREADS;i++){
+    const w = new Worker(workerURL);
+    w.onmessage = msg=>{
+      const {found, file, name} = msg.data;
+      completed++;
+      updateProgress();
+
+      if(found){
+        const gameName = file.split("/").pop();
+        db[gameName] = db[gameName] || {name:gameName, url:file};
+        saveDB();
+        addGameCard(gameName, file);
+      }
+    };
+    workers.push(w);
+  }
+
+  let index = 0;
+
+  async function dispatch(){
+    if(!scanning) return;
+
+    for(let w of workers){
+      if(index >= names.length) return;
+
+      const base = "/games/" + names[index];
+      for(const ext of exts){
+        const file = base + ext;
+        w.postMessage({file});
+      }
+      index++;
+    }
+
+    if(index < names.length){
+      setTimeout(dispatch, 20);
+    } else {
+      loader.innerText = "Scan complete";
+    }
+  }
+
+  dispatch();
+}
+
+/* ================================================================
+     LOAD LAST GAME IF EXISTS
+================================================================ */
+const last = localStorage.getItem("lastGame");
+if(last){
+  setTimeout(()=>window.location.href = last, 1500);
+}
+
+/* ================================================================
+     SETTINGS
+================================================================ */
+themeSelect.onchange = ()=>{
+  document.body.className = themeSelect.value;
+  localStorage.setItem("theme", themeSelect.value);
 };
 
-window.onload = runScan;
+document.body.className = localStorage.getItem("theme") || "dark";
+
+stopScan.onclick = ()=>{ scanning=false; loader.innerText="Stopped"; };
+rescan.onclick = ()=>location.reload();
+clearDB.onclick = ()=>{
+  localStorage.removeItem("puzzledDB");
+  location.reload();
+};
+
+/* ================================================================
+     START AUTO-SCAN
+================================================================ */
+startScan();
 </script>
 
 </body>
