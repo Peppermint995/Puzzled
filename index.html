@@ -1,129 +1,77 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html>
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Puzzled.org — Games</title>
-  <style>
-    :root{
-      --bg:#0f1724; --card:#111827; --muted:#9ca3af; --accent:#60a5fa;
-      --btn:#111827; --btn-hover:#0b1220;
-      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-    }
-    body{ margin:0; min-height:100vh; background:linear-gradient(180deg,#071029 0%, #071a2d 100%); color:#e6eef8; display:flex; flex-direction:column; align-items:center; gap:16px; padding:28px; box-sizing:border-box;}
-    header{ text-align:center; }
-    h1{ margin:0; font-size:1.8rem; letter-spacing:0.6px; }
-    p.lead{ margin:6px 0 0; color:var(--muted); font-size:0.95rem; }
-    .container{ width:100%; max-width:1100px; display:grid; grid-template-columns: 360px 1fr; gap:20px; align-items:start; }
-    .sidebar{ background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent); border-radius:12px; padding:14px; box-shadow: 0 6px 18px rgba(2,6,23,0.6); }
-    .games-list{ display:flex; flex-direction:column; gap:8px; margin-top:10px; max-height:66vh; overflow:auto; padding-right:6px; }
-    .game-btn{
-      display:flex; align-items:center; gap:10px; justify-content:space-between;
-      padding:10px 12px; border-radius:8px; background:var(--btn);
-      border:1px solid rgba(255,255,255,0.03); cursor:pointer; text-decoration:none; color:inherit;
-      transition:transform .08s ease, background .12s ease;
-    }
-    .game-btn:hover{ transform:translateY(-2px); background:var(--btn-hover); }
-    .small{ font-size:0.85rem; color:var(--muted); }
-    .controls{ display:flex; gap:8px; margin-top:10px; }
-    .control-btn{ padding:8px 10px; border-radius:8px; border:none; background:var(--accent); color:#07203a; font-weight:600; cursor:pointer; }
-    .control-btn.ghost{ background:transparent; border:1px solid rgba(255,255,255,0.04); color:var(--muted); font-weight:500; }
-    .viewer{ background: #081226; border-radius:12px; padding:10px; min-height:60vh; box-shadow: 0 8px 30px rgba(2,6,23,0.6); display:flex; flex-direction:column; gap:8px; }
-    .iframe-wrap{ flex:1; border-radius:10px; overflow:hidden; background:#000; }
-    iframe{ width:100%; height:100%; border:0; display:block; background:white; }
-    .meta{ display:flex; align-items:center; gap:8px; justify-content:space-between; }
-    input[type="search"]{ width:100%; padding:8px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.03); background:transparent; color:inherit; }
-    footer{ margin-top:12px; color:var(--muted); font-size:0.85rem; }
-    @media (max-width:980px){ .container{ grid-template-columns: 1fr; } .sidebar{ order:2 } .viewer{ order:1 } iframe{ min-height:50vh; } }
-  </style>
+<meta charset="UTF-8">
+<title>Puzzled.org</title>
+<style>
+  body {
+    background: #10131a;
+    color: #ececec;
+    font-family: Arial, sans-serif;
+    padding: 20px;
+  }
+  h1 { text-align: center; }
+  .game-btn {
+    display: block;
+    width: 100%;
+    margin: 8px 0;
+    padding: 12px;
+    background: #1c2330;
+    color: white;
+    border: 1px solid #333;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: left;
+    transition: 0.2s;
+  }
+  .game-btn:hover {
+    background: #273246;
+  }
+</style>
 </head>
 <body>
-  <header>
-    <h1>Puzzled.org — Game Hub</h1>
-    <p class="lead">Buttons are auto-generated from <code>/games/games.json</code>. Click a game to load it in the viewer or open it in a new tab.</p>
-  </header>
 
-  <div class="container">
-    <aside class="sidebar" aria-label="Games list">
-      <div style="display:flex; gap:8px; align-items:center;">
-        <input id="search" type="search" placeholder="Search games..." aria-label="Search games">
-        <button id="refreshBtn" class="control-btn ghost" title="Refresh list">Refresh</button>
-      </div>
+<h1>Puzzled.org</h1>
+<p style="text-align:center">Choose a game:</p>
 
-      <div id="gamesList" class="games-list" role="list" aria-live="polite">
-        <!-- Buttons inserted here -->
-      </div>
+<div id="games"></div>
 
-      <div style="margin-top:10px; display:flex; gap:8px;">
-        <button id="openNewTab" class="control-btn">Open Selected In New Tab</button>
-        <button id="openRaw" class="control-btn ghost">Open Raw File</button>
-      </div>
+<script>
+// folder with your games
+const gameFolder = "games/";
 
-      <div style="margin-top:12px; font-size:0.9rem; color:var(--muted);">
-        <strong>Tip:</strong> Put your game HTML files in <code>/games/</code> and create a <code>games.json</code> manifest (example below).
-      </div>
-    </aside>
+// Try loading the folder itself
+fetch(gameFolder)
+  .then(res => res.text())
+  .then(html => {
+      const div = document.createElement("div");
+      div.innerHTML = html;
 
-    <main class="viewer" aria-label="Game viewer">
-      <div class="meta">
-        <div>
-          <div id="selectedName" style="font-weight:600">No game selected</div>
-          <div class="small" id="selectedPath"></div>
-        </div>
-        <div style="display:flex; gap:8px;">
-          <button id="loadInFrame" class="control-btn ghost">Load in Viewer</button>
-          <button id="openTabBtn" class="control-btn">Open in New Tab</button>
-        </div>
-      </div>
+      // find all links to .html files
+      const links = [...div.querySelectorAll("a")]
+          .map(a => a.getAttribute("href"))
+          .filter(h => h && h.endsWith(".html"));
 
-      <div class="iframe-wrap" id="iframeWrap" aria-hidden="true">
-        <iframe id="gameFrame" src="" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
-      </div>
-      <div class="small">If the game needs same-origin resources or uses advanced features, prefer opening in a new tab. GitHub Pages sandboxing and cross-origin rules may affect some games.</div>
-    </main>
-  </div>
+      const container = document.getElementById("games");
 
-  <footer>Built for Puzzled.org • Put your game files in <code>/games/</code> and add a <code>games.json</code> manifest.</footer>
+      if (links.length === 0) {
+        container.innerHTML = "<p>No games found in /games/</p>";
+        return;
+      }
 
-  <script>
-  (function(){
-    const gamesDir = '/games/'; // where your game html files live
-    const manifestFile = 'games.json'; // recommended manifest
-
-    const gamesListEl = document.getElementById('gamesList');
-    const searchEl = document.getElementById('search');
-    const refreshBtn = document.getElementById('refreshBtn');
-    const loadInFrameBtn = document.getElementById('loadInFrame');
-    const openTabBtn = document.getElementById('openTabBtn');
-    const openNewTabBtn = document.getElementById('openNewTab');
-    const openRawBtn = document.getElementById('openRaw');
-    const selectedNameEl = document.getElementById('selectedName');
-    const selectedPathEl = document.getElementById('selectedPath');
-    const iframe = document.getElementById('gameFrame');
-
-    let games = []; // {name, file}
-    let selected = null;
-
-    function sanitizeFilename(name){
-      // prevent directory traversal
-      return name.replace(/^(\.\.\/|\/)+/, '');
-    }
-
-    function buildButton(game){
-      const el = document.createElement('button');
-      el.className = 'game-btn';
-      el.type = 'button';
-      el.setAttribute('data-file', game.file);
-      el.innerHTML = `<span style="text-align:left"><strong>${escapeHtml(game.name)}</strong><div class="small">${escapeHtml(game.file)}</div></span>
-                      <span class="small">▶</span>`;
-      el.addEventListener('click', () => {
-        selectGame(game);
+      links.forEach(file => {
+        const btn = document.createElement("button");
+        btn.className = "game-btn";
+        btn.textContent = file.replace(".html", "");
+        btn.onclick = () => window.location.href = gameFolder + file;
+        container.appendChild(btn);
       });
-      return el;
-    }
+  })
+  .catch(err => {
+      document.getElementById("games").innerHTML =
+        "<p>Unable to load games folder.</p>";
+  });
+</script>
 
-    function escapeHtml(s){
-      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    }
-
-    funct
+</body>
+</html>
