@@ -15,8 +15,8 @@ async function loadGames() {
   } catch(e) {
     // Fallback if JSON not found: use manual list
     realGames = [
-      {name: "SpaceShooter", url: "/games/spaceshooter.html"},
-      {name: "MazeRunner", url: "/games/mazerunner.html"},
+      {name: "Minecraft (eaglkercraft)", url: "/games/Minecraft.html"},
+      {name: "Yellow", url: "/games/a0.html"},
       {name: "BrickBreaker", url: "/games/brickbreaker.html"}
     ];
   }
