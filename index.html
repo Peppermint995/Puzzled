@@ -6,7 +6,6 @@
 <title>Puzzled.org — Auto Game Scanner</title>
 
 <style>
-/* ---------- THEMES ---------- */
 :root {
   --bg: #0a0a0f;
   --card: #11151f;
@@ -33,7 +32,6 @@ body.glass {
   --blur: blur(16px);
 }
 
-/* ---------- GENERAL UI ---------- */
 body {
   margin: 0;
   font-family: Arial, sans-serif;
@@ -70,7 +68,6 @@ header {
   transition: width 0.1s;
 }
 
-/* ---------- GAME GRID ---------- */
 #games {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
@@ -101,7 +98,6 @@ header {
   object-fit: contain;
 }
 
-/* ---------- SETTINGS PANEL ---------- */
 #panel {
   position: fixed;
   top: 0; right: 0;
@@ -135,7 +131,6 @@ button {
 
 <div id="games"></div>
 
-<!-- SETTINGS PANEL -->
 <div id="panel">
   <h3>Settings</h3>
   <select id="themeSelect">
@@ -150,9 +145,7 @@ button {
 </div>
 
 <script>
-/* ================================================================
-     WORKER CODE — Encoded as a Blob so no worker.js file needed!
-================================================================ */
+// ========== WORKER CODE ==========
 const workerCode = `
 self.onmessage = async e=>{
   const {file} = e.data;
@@ -163,17 +156,13 @@ self.onmessage = async e=>{
   }catch(err){ self.postMessage({found:false}); }
 };
 `;
-
 const workerBlob = new Blob([workerCode], {type: "application/javascript"});
 const workerURL = URL.createObjectURL(workerBlob);
 
-/* ================================================================
-     MAIN SCANNER LOGIC
-================================================================ */
+// ========== SCANNER LOGIC ==========
 const exts = [".html",".htm",".zip",".js",".wasm"];
 const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789-_";
 let scanning = true;
-const maxLength = 12;      // brute force length
 const THREADS = 8;
 const workers = [];
 
@@ -184,7 +173,7 @@ function generateNames() {
   const out = ["index","game","play","start","main","run"];
   for (let i=0; i<alphabet.length; i++) {
     for (let j=0; j<alphabet.length; j++) {
-      out.push(alphabet[i] + alphabet[j]);
+      out.push(alphabet[i]+alphabet[j]);
     }
   }
   return out;
@@ -200,8 +189,29 @@ function updateProgress(){
   loader.innerText = `Scanning… ${Math.floor(pct)}%`;
 }
 
-function detectLogo(gameURL){
-  return gameURL.replace(/\.(html|htm|js|zip|wasm)$/,"") + ".png";
+// ========== AI GENERATED LOGO ==========
+function generateLogo(name){
+  // create a canvas and draw name
+  const canvas = document.createElement("canvas");
+  canvas.width = 200;
+  canvas.height = 120;
+  const ctx = canvas.getContext("2d");
+
+  // background color based on hash
+  let hash = 0;
+  for(let i=0;i<name.length;i++) hash = name.charCodeAt(i) + ((hash<<5)-hash);
+  const r = (hash>>0)&255, g = (hash>>8)&255, b = (hash>>16)&255;
+  ctx.fillStyle = `rgb(${r},${g},${b})`;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // text
+  ctx.fillStyle = "#fff";
+  ctx.font = "20px Arial";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(name, canvas.width/2, canvas.height/2);
+
+  return canvas.toDataURL();
 }
 
 function addGameCard(name, url){
@@ -212,8 +222,7 @@ function addGameCard(name, url){
 
   const img = document.createElement("img");
   img.className = "game-logo";
-  img.src = detectLogo(url);
-  img.onerror = ()=>{ img.style.display="none"; };
+  img.src = generateLogo(name); // use AI generated logo
 
   const title = document.createElement("div");
   title.innerText = name;
@@ -277,17 +286,13 @@ async function startScan(){
   dispatch();
 }
 
-/* ================================================================
-     AUTO-PLAY LAST GAME
-================================================================ */
+// ========== AUTO-PLAY LAST GAME ==========
 const last = localStorage.getItem("lastGame");
 if(last){
   setTimeout(()=>window.location.href = last, 1500);
 }
 
-/* ================================================================
-     SETTINGS
-================================================================ */
+// ========== SETTINGS ==========
 themeSelect.onchange = ()=>{
   document.body.className = themeSelect.value;
   localStorage.setItem("theme", themeSelect.value);
@@ -302,12 +307,8 @@ clearDB.onclick = ()=>{
   location.reload();
 };
 
-/* ================================================================
-     START SCANNING
-================================================================ */
+// ========== START SCANNING ==========
 startScan();
 </script>
-
 </body>
 </html>
-
