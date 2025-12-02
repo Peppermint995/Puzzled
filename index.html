@@ -1,589 +1,313 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Puzzled.org — Auto Scanner (games/)</title>
-<meta name="color-scheme" content="dark light">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Puzzled.org — Auto Game Scanner</title>
+
 <style>
-  :root{
-    --bg:#071229; --card:#0f1724; --muted:#9ca3af; --accent:#60a5fa; --glass:rgba(255,255,255,0.04);
-    --neon:#7cffb2;
-    font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
-  }
-  html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#041324);color:#e6eef8}
-  .wrap{max-width:1100px;margin:20px auto;padding:18px;display:grid;grid-template-columns:340px 1fr;gap:18px}
-  header{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px}
-  h1{margin:0;font-size:1.25rem}
-  .left{background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent);border-radius:12px;padding:12px;box-shadow:0 6px 20px rgba(0,0,0,0.5)}
-  .controls{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
-  button{background:var(--accent);border:0;color:#05202b;padding:8px 10px;border-radius:8px;cursor:pointer;font-weight:600}
-  button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted)}
-  .progress{height:14px;background:#06131b;border-radius:8px;overflow:hidden;margin-top:12px}
-  .bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent),#58a3f7);transition:width .12s linear}
-  .workers{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
-  .worker{flex:1;padding:6px;border-radius:8px;background:#05111a;font-size:12px;text-align:center}
-  .viewer{background:linear-gradient(180deg,#051122,#061626);border-radius:12px;padding:12px;box-shadow:0 8px 30px rgba(0,0,0,0.5);display:flex;flex-direction:column}
-  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
-  .card{background:var(--card);border-radius:10px;padding:8px;display:flex;gap:8px;align-items:center;min-height:78px}
-  .thumb{width:84px;height:56px;border-radius:6px;background:#000;flex:0 0 84px;display:flex;align-items:center;justify-content:center;overflow:hidden}
-  .thumb img{width:100%;height:100%;object-fit:cover;display:block}
-  .meta{flex:1;min-width:0}
-  .meta h3{margin:0;font-size:0.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .meta p{margin:4px 0 0;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .dbpanel{margin-top:12px;background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent);padding:8px;border-radius:8px}
-  .small{font-size:12px;color:var(--muted)}
-  .iframeWrap{margin-top:12px;border-radius:8px;overflow:hidden;background:#000;min-height:300px}
-  iframe{width:100%;height:420px;border:0;display:block;background:#fff}
-  .topbar{display:flex;gap:8px;align-items:center}
-  .themeBtn{padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:var(--muted);cursor:pointer}
-  .loading{display:inline-block; width:18px; height:18px; border-radius:50%; border:3px solid rgba(255,255,255,0.08); border-top-color:var(--accent); animation:spin 1s linear infinite; vertical-align:middle}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .hidden{display:none}
-  .db-list{max-height:180px;overflow:auto;margin-top:8px}
-  .db-item{display:flex;gap:8px;align-items:center;padding:6px;border-radius:6px}
-  .db-item .name{flex:1;min-width:0}
-  .tog{cursor:pointer;padding:4px 6px;border-radius:6px;background:transparent;border:1px solid rgba(255,255,255,0.03);font-size:12px}
-  /* themes */
-  .theme-neon{--accent:var(--neon);filter:drop-shadow(0 0 8px rgba(124,255,178,0.14))}
-  .theme-glass { background: linear-gradient(180deg, rgba(10,14,20,0.6), rgba(6,12,18,0.6)); backdrop-filter: blur(6px) saturate(120%);}
-  @media(max-width:980px){ .wrap{grid-template-columns:1fr} .iframeWrap iframe{height:320px} }
+/* ---------- THEMES ---------- */
+:root {
+  --bg: #0a0a0f;
+  --card: #11151f;
+  --text: #eee;
+  --accent: #4da3ff;
+  --glass: rgba(255,255,255,0.05);
+  --border: rgba(255,255,255,0.08);
+  --blur: blur(8px);
+}
+
+body.neon {
+  --bg: #02030e;
+  --card: #03051a;
+  --text: #7df9ff;
+  --accent: #00eaff;
+}
+
+body.glass {
+  --bg: #0a0a0a;
+  --card: rgba(255,255,255,0.15);
+  --text: #fff;
+  --accent: #80c0ff;
+  --border: rgba(255,255,255,0.2);
+  --blur: blur(16px);
+}
+
+/* ---------- GENERAL UI ---------- */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+header {
+  text-align: center;
+  padding: 20px;
+  font-size: 30px;
+  font-weight: bold;
+}
+
+#loader {
+  width: 100%;
+  text-align: center;
+  font-size: 18px;
+  margin-top: 20px;
+}
+
+.progress {
+  width: 80%;
+  margin: 10px auto;
+  height: 20px;
+  background: #333;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.bar {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  transition: width 0.1s;
+}
+
+/* ---------- GAME GRID ---------- */
+#games {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
+  gap: 18px;
+  padding: 20px;
+}
+
+.game-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 15px;
+  border-radius: 12px;
+  cursor: pointer;
+  backdrop-filter: var(--blur);
+  transition: 0.2s;
+}
+.game-card:hover {
+  transform: scale(1.05);
+  border-color: var(--accent);
+}
+
+.game-logo {
+  width: 100%;
+  height: 120px;
+  background: #000;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  object-fit: contain;
+}
+
+/* ---------- SETTINGS PANEL ---------- */
+#panel {
+  position: fixed;
+  top: 0; right: 0;
+  width: 300px;
+  height: 100vh;
+  background: var(--card);
+  border-left: 1px solid var(--border);
+  padding: 15px;
+  overflow-y: auto;
+}
+input, button, select {
+  width: 100%;
+  padding: 10px;
+  margin-top: 12px;
+  border: none;
+  border-radius: 8px;
+}
+button {
+  background: var(--accent);
+  color: #000;
+  font-weight: bold;
+}
 </style>
 </head>
-<body>
-  <div class="wrap" id="app">
-    <header>
-      <div>
-        <h1>Puzzled.org — Auto Scanner</h1>
-        <div class="small">Scans <code>/games/</code> root for .html .js .zip .wasm (no subfolders)</div>
-      </div>
-      <div class="topbar">
-        <div id="autoAnim" class="loading hidden" title="Scanning"></div>
-        <button id="themeToggle" class="themeBtn">Theme</button>
-        <button id="clearSaved" class="themeBtn">Clear DB</button>
-      </div>
-    </header>
 
-    <aside class="left">
-      <div><strong>Scanner</strong></div>
-      <div class="controls">
-        <button id="startBtn">Start Scan</button>
-        <button id="stopBtn" class="ghost" disabled>Stop</button>
-        <button id="saveBtn" class="ghost">Save Results</button>
-        <button id="loadSaved" class="ghost">Load Saved</button>
-      </div>
+<body class="dark">
+<header>Puzzled.org — Auto Game Scanner</header>
 
-      <div style="margin-top:10px">
-        <label class="small">Workers: <strong id="workerCountLabel">8</strong></label>
-        <input id="workerCount" type="range" min="1" max="12" value="8" />
-      </div>
+<div id="loader">Scanning games…</div>
+<div class="progress"><div class="bar" id="progressBar"></div></div>
 
-      <div class="progress" title="overall progress">
-        <div class="bar" id="progressBar"></div>
-      </div>
-      <div class="workers" id="workerStatus"></div>
+<div id="games"></div>
 
-      <div style="margin-top:8px">
-        <label class="small">Candidate control</label>
-        <div style="display:flex;gap:6px;margin-top:6px">
-          <button id="useDefaults" class="ghost">Use Defaults</button>
-          <button id="pasteList" class="ghost">Paste List</button>
-        </div>
-        <textarea id="customList" placeholder="One filename per line (no extension). Leave empty to use auto-generated list." style="width:100%;height:80px;margin-top:8px;background:#04101a;border:1px solid rgba(255,255,255,0.03);color:inherit;padding:8px;border-radius:6px"></textarea>
-      </div>
+<!-- SETTINGS PANEL -->
+<div id="panel">
+  <h3>Settings</h3>
+  <select id="themeSelect">
+    <option value="dark">Dark</option>
+    <option value="neon">Neon</option>
+    <option value="glass">Glass</option>
+  </select>
 
-      <div class="dbpanel">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <strong>Database</strong>
-          <div class="small">Rename / Hide / Delete</div>
-        </div>
-        <div class="db-list" id="dbList"></div>
-      </div>
-    </aside>
-
-    <main class="viewer">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div><strong>Found games</strong> <span id="foundCount" class="small">(0)</span></div>
-        <div style="display:flex;gap:8px">
-          <button id="autoplayToggle" class="tog">Auto-play: Off</button>
-          <button id="exportBtn" class="ghost">Export JSON</button>
-        </div>
-      </div>
-
-      <div class="cards" id="cards"></div>
-
-      <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
-        <input id="search" placeholder="Filter results..." style="flex:1;padding:8px;border-radius:8px;background:#04101a;border:1px solid rgba(255,255,255,0.03);color:inherit" />
-        <button id="openSelected" class="ghost">Open Selected</button>
-      </div>
-
-      <div class="iframeWrap" id="iframeWrap" aria-hidden="true">
-        <iframe id="gameFrame" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
-      </div>
-
-      <div style="margin-top:8px" class="small">Tip: add a custom filename list to speed up scanning. Scan runs only against <code>/games/&lt;name&gt;.&lt;ext&gt;</code>.</div>
-    </main>
-  </div>
+  <button id="stopScan">Stop Scan</button>
+  <button id="rescan">Rescan</button>
+  <button id="clearDB">Reset Database</button>
+</div>
 
 <script>
-/* ---------- CONFIG ---------- */
-const GAMES_DIR = '/games/'; // no trailing subfolders
-const TARGET_EXTS = ['.html', '.js', '.zip', '.wasm'];
-const DEFAULT_WORKERS = 8;
-const AUTO_START = true; // auto-start on load (you asked for auto-scan)
-const MAX_CANDIDATES = 8000; // practical limit (adjust in UI)
-const PERSIST_KEY = 'puzzled_scanner_db_v1';
-/* ---------------------------- */
-
-let workerPool = [];
-let workerCount = DEFAULT_WORKERS;
-let taskQueue = [];
-let found = []; // {name,file,ext,logoUrl,detectedAt}
-let db = {}; // keyed by file -> {name,hidden,notes}
-let running = false;
-let totalTasks = 0;
-let tasksDone = 0;
-let autoplay = false;
-const app = document.getElementById('app');
-
-/* UI refs */
-const startBtn = document.getElementById('startBtn');
-const stopBtn  = document.getElementById('stopBtn');
-const saveBtn = document.getElementById('saveBtn');
-const loadSavedBtn = document.getElementById('loadSaved');
-const workerSlider = document.getElementById('workerCount');
-const workerCountLabel = document.getElementById('workerCountLabel');
-const workerStatusEl = document.getElementById('workerStatus');
-const progressBar = document.getElementById('progressBar');
-const cardsEl = document.getElementById('cards');
-const foundCount = document.getElementById('foundCount');
-const customList = document.getElementById('customList');
-const useDefaultsBtn = document.getElementById('useDefaults');
-const pasteListBtn = document.getElementById('pasteList');
-const dbListEl = document.getElementById('dbList');
-const searchEl = document.getElementById('search');
-const openSelectedBtn = document.getElementById('openSelected');
-const gameFrame = document.getElementById('gameFrame');
-const autoplayToggle = document.getElementById('autoplayToggle');
-const autoAnim = document.getElementById('autoAnim');
-const exportBtn = document.getElementById('exportBtn');
-const clearSavedBtn = document.getElementById('clearSaved');
-const themeToggle = document.getElementById('themeToggle');
-
-/* ---------- Worker script (string) ---------- */
-const workerScript = `self.onmessage = async function(e){
-  const {taskId, base, ext, name} = e.data;
+/* ================================================================
+     WORKER CODE — Encoded as a Blob so no worker.js file needed!
+================================================================ */
+const workerCode = `
+self.onmessage = async e=>{
+  const {file} = e.data;
   try{
-    const url = base + encodeURIComponent(name) + ext;
-    // prefer HEAD for quick check
-    const r = await fetch(url, {method:'HEAD', cache:'no-store'});
-    if(r.ok){
-      self.postMessage({found:true, url, name, ext, taskId});
-    } else {
-      self.postMessage({found:false, url, name, ext, taskId});
-    }
-  }catch(err){
-    // network or CORS: report not found
-    self.postMessage({found:false, url: base+name+ext, name, ext, taskId});
-  }
-};`;
+    const r = await fetch(file,{method:'HEAD'});
+    if(r.ok){ self.postMessage({found:true,file}); }
+    else    { self.postMessage({found:false}); }
+  }catch(err){ self.postMessage({found:false}); }
+};
+`;
 
-/* ---------- Helper utilities ---------- */
-function createWorker(){
-  const blob = new Blob([workerScript], {type:'application/javascript'});
-  const url = URL.createObjectURL(blob);
-  const w = new Worker(url);
-  w.id = Math.random().toString(36).slice(2,8);
-  w.onmessage = onWorkerMessage.bind(null, w);
-  return w;
-}
+const workerBlob = new Blob([workerCode], {type: "application/javascript"});
+const workerURL = URL.createObjectURL(workerBlob);
 
-function onWorkerMessage(worker, msg){
-  const data = msg.data;
-  worker.lastTask = null;
-  updateWorkerStatus();
-  tasksDone++;
-  updateProgress();
-  if(data.found){
-    // push found result
-    // normalize url unescaped for display
-    const u = decodeURIComponent(data.url);
-    const file = u.replace(/^\/?/, '').replace(/^.*?\\/games\\//,'').replace(/^.*?\\/games\\//,''); // best effort
-    // avoid duplicates
-    if(!found.some(x=>x.file === u)){
-      const entry = {name: data.name, file: u, ext: data.ext, detectedAt: Date.now()};
-      found.push(entry);
-      renderFoundCard(entry);
-      saveToLocalCache(); // keep DB in sync
-      // fetch HTML to detect logo if it's an html file
-      if(data.ext === '.html'){
-        detectLogo(u).then(url => {
-          if(url){
-            const f = found.find(x=>x.file===u);
-            if(f){ f.logo = url; updateCardLogo(u,url); saveToLocalCache(); }
-          }
-        }).catch(()=>{});
-      }
-      // autoplay if enabled
-      if(autoplay) openInIframe(u);
+/* ================================================================
+     MAIN SCANNER LOGIC
+================================================================ */
+const exts = [".html",".htm",".zip",".js",".wasm"];
+const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789-_";
+let scanning = true;
+const maxLength = 12;      // brute force length
+const THREADS = 8;
+const workers = [];
+
+const db = JSON.parse(localStorage.getItem("puzzledDB") || "{}");
+function saveDB(){ localStorage.setItem("puzzledDB", JSON.stringify(db)); }
+
+function generateNames() {
+  const out = ["index","game","play","start","main","run"];
+  for (let i=0; i<alphabet.length; i++) {
+    for (let j=0; j<alphabet.length; j++) {
+      out.push(alphabet[i] + alphabet[j]);
     }
   }
-  assignNextTask(worker);
+  return out;
 }
 
-function detectLogo(fileUrl){
-  return new Promise(async (resolve)=>{
-    try{
-      const r = await fetch(fileUrl, {cache:'no-store'});
-      if(!r.ok) return resolve(null);
-      const text = await r.text();
-      // try og:image
-      let m = text.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i);
-      if(!m) m = text.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["']/i);
-      if(m && m[1]) return resolve(normalizeAssetPath(fileUrl, m[1]));
-      // try <link rel="icon">
-      m = text.match(/<link[^>]*rel=["'](?:icon|shortcut icon)["'][^>]*href=["']([^"']+)["']/i);
-      if(m && m[1]) return resolve(normalizeAssetPath(fileUrl, m[1]));
-      // try first <img src=...>
-      m = text.match(/<img[^>]*src=["']([^"']+)["']/i);
-      if(m && m[1]) return resolve(normalizeAssetPath(fileUrl, m[1]));
-      return resolve(null);
-    }catch(e){
-      resolve(null);
-    }
-  });
-}
-
-function normalizeAssetPath(pageUrl, assetUrl){
-  // If assetUrl is absolute, return it. If relative, resolve against pageUrl
-  try{
-    const a = new URL(assetUrl, pageUrl);
-    return a.href;
-  }catch(e){
-    return assetUrl;
-  }
-}
-
-/* ---------- Candidate generation ---------- */
-function generateCandidates(max = 2000){
-  const lines = customList.value.split('\\n').map(s=>s.trim()).filter(Boolean);
-  if(lines.length) return lines.slice(0, max);
-  // defaults: common names + indexed + words + two-letter combos
-  const common = ['index','game','play','puzzle','level','main','start','demo','app','run','level1','level2','maze','memory','block','stack','arcade','platform','match','tiles','puzzled','puzzlegame','game1'];
-  const list = [...common];
-  // numbered
-  for(let i=1;i<=120;i++) list.push('game'+i);
-  // short combos a-z0-9 (two letters)
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  for(let i=0;i<chars.length && list.length<max;i++){
-    for(let j=0;j<chars.length && list.length<max;j++){
-      list.push(chars[i]+chars[j]);
-    }
-  }
-  // trim
-  return list.slice(0, max);
-}
-
-/* ---------- Task queue & worker control ---------- */
-function buildTaskQueue(){
-  taskQueue = [];
-  const candidates = generateCandidates(MAX_CANDIDATES);
-  for(const name of candidates){
-    for(const ext of TARGET_EXTS){
-      taskQueue.push({name, ext});
-    }
-  }
-  totalTasks = taskQueue.length;
-  tasksDone = 0;
-  updateProgress();
-}
-
-function startScan(){
-  if(running) return;
-  found = [];
-  renderAll();
-  loadDB();
-  buildTaskQueue();
-  running = true;
-  autoAnim.classList.remove('hidden');
-  startBtn.disabled = true;
-  stopBtn.disabled = false;
-  // create workers
-  workerCount = Number(workerSlider.value);
-  workerCountLabel.textContent = workerCount;
-  workerPool = [];
-  for(let i=0;i<workerCount;i++){
-    const w = createWorker();
-    workerPool.push(w);
-  }
-  updateWorkerStatus();
-  // assign initial tasks
-  for(const w of workerPool) assignNextTask(w);
-}
-
-function stopScan(){
-  running = false;
-  autoAnim.classList.add('hidden');
-  startBtn.disabled = false;
-  stopBtn.disabled = true;
-  // terminate workers
-  for(const w of workerPool) try{ w.terminate(); }catch(e){}
-  workerPool = [];
-  updateWorkerStatus();
-}
-
-function assignNextTask(worker){
-  if(!running) return;
-  const t = taskQueue.shift();
-  if(!t){
-    // nothing left
-    // if all workers idle, finish
-    if(workerPool.every(w=>!w.lastTask)){
-      stopScan();
-      updateProgress();
-    }
-    return;
-  }
-  worker.lastTask = t;
-  updateWorkerStatus();
-  try{
-    worker.postMessage({taskId: Math.random().toString(36).slice(2,8), base: GAMES_DIR, ext: t.ext, name: t.name});
-  }catch(e){
-    // worker can't post? ignore
-    assignNextTask(worker);
-  }
-}
-
-function updateWorkerStatus(){
-  workerStatusEl.innerHTML = '';
-  for(const w of workerPool){
-    const el = document.createElement('div');
-    el.className = 'worker';
-    el.textContent = w.id + (w.lastTask ? ` → ${w.lastTask.name}${w.lastTask.ext}` : ' — idle');
-    workerStatusEl.appendChild(el);
-  }
-  if(workerPool.length === 0){
-    const el = document.createElement('div');
-    el.className = 'worker';
-    el.textContent = 'stopped';
-    workerStatusEl.appendChild(el);
-  }
-}
+const names = generateNames();
+const totalChecks = names.length * exts.length;
+let completed = 0;
 
 function updateProgress(){
-  const pct = totalTasks ? Math.round((tasksDone/totalTasks)*10000)/100 : 0;
-  progressBar.style.width = pct + '%';
-  foundCount.textContent = `(${found.length})`;
-  if(!running) autoAnim.classList.add('hidden');
+  const pct = (completed / totalChecks) * 100;
+  progressBar.style.width = pct + "%";
+  loader.innerText = `Scanning… ${Math.floor(pct)}%`;
 }
 
-/* ---------- Rendering ---------- */
-function renderAll(){
-  cardsEl.innerHTML = '';
-  dbListEl.innerHTML = '';
-  found.forEach(renderFoundCard);
-  renderDB();
+function detectLogo(gameURL){
+  return gameURL.replace(/\.(html|htm|js|zip|wasm)$/,"") + ".png";
 }
 
-function renderFoundCard(entry){
-  const card = document.createElement('div');
-  card.className = 'card';
-  card.dataset.file = entry.file;
-  const thumb = document.createElement('div'); thumb.className = 'thumb';
-  const img = document.createElement('img');
-  if(entry.logo) img.src = entry.logo;
-  else {
-    // show extension icon text
-    img.src = generatePlaceholder(entry.ext);
-  }
-  thumb.appendChild(img);
-  const meta = document.createElement('div'); meta.className = 'meta';
-  const title = document.createElement('h3'); title.textContent = db[entry.file]?.name || entry.name + entry.ext;
-  const sub = document.createElement('p'); sub.textContent = entry.file;
-  meta.appendChild(title); meta.appendChild(sub);
-  const openBtn = document.createElement('button'); openBtn.textContent = 'Open'; openBtn.style.marginLeft='8px';
-  openBtn.onclick = ()=> {
-    selectAndOpen(entry);
+function addGameCard(name, url){
+  if(db[name]?.hidden) return;
+
+  const card = document.createElement("div");
+  card.className = "game-card";
+
+  const img = document.createElement("img");
+  img.className = "game-logo";
+  img.src = detectLogo(url);
+  img.onerror = ()=>{ img.style.display="none"; };
+
+  const title = document.createElement("div");
+  title.innerText = name;
+
+  card.appendChild(img);
+  card.appendChild(title);
+
+  card.onclick = ()=>{
+    localStorage.setItem("lastGame", url);
+    window.location.href = url;
   };
-  const menu = document.createElement('div'); menu.style.display='flex'; menu.style.gap='6px'; menu.style.marginLeft='8px';
-  const hideBtn = document.createElement('button'); hideBtn.textContent='Hide'; hideBtn.className='ghost'; hideBtn.onclick=()=>{
-    db[entry.file] = db[entry.file] || {};
-    db[entry.file].hidden = true; saveToLocalCache(); renderAll();
-  };
-  const renameBtn = document.createElement('button'); renameBtn.textContent='Rename'; renameBtn.className='ghost'; renameBtn.onclick=()=>{
-    const n = prompt('Rename entry (display name):', db[entry.file]?.name || title.textContent);
-    if(n!==null){ db[entry.file] = db[entry.file] || {}; db[entry.file].name = n; saveToLocalCache(); renderAll(); }
-  };
-  menu.appendChild(renameBtn); menu.appendChild(hideBtn);
-  card.appendChild(thumb);
-  card.appendChild(meta);
-  card.appendChild(menu);
-  cardsEl.prepend(card);
-  updateFoundCount();
+
+  games.appendChild(card);
 }
 
-function updateCardLogo(fileUrl, logoUrl){
-  const el = cardsEl.querySelector(\`[data-file="\${fileUrl}"] .thumb img\`);
-  if(el) el.src = logoUrl;
-}
+async function startScan(){
+  scanning = true;
 
-function updateFoundCount(){ foundCount.textContent = '('+found.filter(f=>!db[f.file]?.hidden).length +')'; }
+  // create workers
+  for(let i=0;i<THREADS;i++){
+    const w = new Worker(workerURL);
+    w.onmessage = msg=>{
+      const {found, file} = msg.data;
 
-function renderDB(){
-  dbListEl.innerHTML = '';
-  const keys = Object.keys(db || {});
-  if(keys.length===0){ dbListEl.innerHTML = '<div class="small">No saved entries</div>'; return; }
-  for(const k of keys){
-    const row = document.createElement('div'); row.className='db-item';
-    const nm = document.createElement('div'); nm.className='name'; nm.textContent = db[k].name || k;
-    const hidebtn = document.createElement('button'); hidebtn.className='tog'; hidebtn.textContent = db[k].hidden ? 'Hidden' : 'Visible';
-    hidebtn.onclick = ()=>{ db[k].hidden = !db[k].hidden; saveToLocalCache(); renderAll(); };
-    const delbtn = document.createElement('button'); delbtn.className='tog'; delbtn.textContent='Delete';
-    delbtn.onclick = ()=>{ if(confirm('Delete DB entry?')){ delete db[k]; saveToLocalCache(); renderAll(); } };
-    row.appendChild(nm); row.appendChild(hidebtn); row.appendChild(delbtn);
-    dbListEl.appendChild(row);
+      completed++;
+      updateProgress();
+
+      if(found){
+        const gameName = file.split("/").pop();
+        db[gameName] = db[gameName] || {name:gameName, url:file};
+        saveDB();
+        addGameCard(gameName, file);
+      }
+    };
+    workers.push(w);
   }
-}
 
-/* ---------- persistence ---------- */
-function saveToLocalCache(){
-  try{
-    // store found list + db
-    const payload = {found, db, savedAt: Date.now()};
-    localStorage.setItem(PERSIST_KEY, JSON.stringify(payload));
-  }catch(e){}
-}
-function loadFromLocalCache(){
-  try{
-    const raw = localStorage.getItem(PERSIST_KEY);
-    if(!raw) return null;
-    return JSON.parse(raw);
-  }catch(e){ return null; }
-}
-function loadDB(){
-  const data = loadFromLocalCache();
-  if(data){
-    // keep db (rename/hide) and merge found list if present
-    db = data.db || {};
-  } else db = {};
-}
+  let index = 0;
 
-/* ---------- Interactions ---------- */
-startBtn.onclick = startScan;
-stopBtn.onclick = stopScan;
-workerSlider.oninput = ()=> { workerCountLabel.textContent = workerSlider.value; };
+  async function dispatch(){
+    if(!scanning) return;
 
-useDefaultsBtn.onclick = ()=> { customList.value = ''; alert('Default candidate list active'); };
-pasteListBtn.onclick = ()=> { const s = prompt('Paste newline-separated filenames (no ext):'); if(s!==null) customList.value = s; };
+    for(let w of workers){
+      if(index >= names.length) return;
 
-saveBtn.onclick = ()=> {
-  saveToLocalCache();
-  alert('Results saved locally.');
-};
-loadSavedBtn.onclick = ()=> {
-  const payload = loadFromLocalCache();
-  if(payload){
-    found = payload.found || [];
-    db = payload.db || {};
-    renderAll();
-    alert('Loaded saved results.');
-  } else alert('No saved data found.');
-};
+      const base = "/games/" + names[index];
+      for(const ext of exts){
+        const file = base + ext;
+        w.postMessage({file});
+      }
+      index++;
+    }
 
-exportBtn.onclick = ()=>{
-  const data = {found, db, exportedAt: Date.now()};
-  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'puzzled_scan_export.json';
-  a.click();
-};
-
-clearSavedBtn.onclick = ()=> {
-  if(confirm('Clear saved DB and results?')){
-    localStorage.removeItem(PERSIST_KEY);
-    db = {}; found = []; renderAll();
-    alert('Cleared.');
+    if(index < names.length){
+      setTimeout(dispatch, 20);
+    } else {
+      loader.innerText = "Scan complete";
+    }
   }
-};
 
-searchEl.oninput = ()=> {
-  const q = searchEl.value.trim().toLowerCase();
-  Array.from(cardsEl.children).forEach(card=>{
-    const txt = card.querySelector('.meta h3').textContent + ' ' + card.querySelector('.meta p').textContent;
-    card.style.display = q && !txt.toLowerCase().includes(q) ? 'none' : '';
-  });
-};
-
-autoplayToggle.onclick = ()=>{
-  autoplay = !autoplay;
-  autoplayToggle.textContent = 'Auto-play: ' + (autoplay ? 'On' : 'Off');
-  localStorage.setItem('puzzled_autoplay', autoplay ? '1' : '0');
-};
-
-openSelectedBtn.onclick = ()=>{
-  // open first found visible entry
-  const f = found.find(x=>!db[x.file]?.hidden);
-  if(!f) return alert('No visible found file.');
-  window.open(f.file, '_blank', 'noopener');
-};
-
-function selectAndOpen(entry){
-  // open in iframe
-  openInIframe(entry.file);
-  // mark last opened
-  localStorage.setItem('puzzled_last_opened', entry.file);
+  dispatch();
 }
 
-/* ---------- Iframe / autoplay ---------- */
-function openInIframe(url){
-  gameFrame.src = url;
-  document.getElementById('iframeWrap').ariaHidden = 'false';
+/* ================================================================
+     AUTO-PLAY LAST GAME
+================================================================ */
+const last = localStorage.getItem("lastGame");
+if(last){
+  setTimeout(()=>window.location.href = last, 1500);
 }
 
-/* ---------- Helpers ---------- */
-function generatePlaceholder(ext){
-  // tiny inline SVG data URI with ext text (keeps thumbnails)
-  const txt = ext.replace('.','').toUpperCase();
-  const svg = encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='200' height='120'><rect width='100%' height='100%' fill='#0b1220'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='Arial' font-size='22' fill='#7daeea'>${txt}</text></svg>`);
-  return 'data:image/svg+xml;charset=utf-8,' + svg;
-}
-
-/* ---------- Theme toggle ---------- */
-let currentTheme = localStorage.getItem('puzzled_theme') || '';
-function applyTheme(name){
-  document.documentElement.classList.remove('theme-neon','theme-glass');
-  if(name==='neon') document.documentElement.classList.add('theme-neon');
-  if(name==='glass') document.documentElement.classList.add('theme-glass');
-  currentTheme = name;
-  localStorage.setItem('puzzled_theme', name);
-}
-themeToggle.onclick = ()=>{
-  const next = currentTheme === '' ? 'neon' : currentTheme === 'neon' ? 'glass' : '';
-  applyTheme(next);
-  themeToggle.textContent = 'Theme: ' + (next||'dark');
+/* ================================================================
+     SETTINGS
+================================================================ */
+themeSelect.onchange = ()=>{
+  document.body.className = themeSelect.value;
+  localStorage.setItem("theme", themeSelect.value);
 };
 
-/* ---------- On load: restore states ---------- */
-(function onLoad(){
-  // worker slider default
-  workerSlider.value = DEFAULT_WORKERS;
-  workerCountLabel.textContent = DEFAULT_WORKERS;
-  // load DB
-  const payload = loadFromLocalCache();
-  if(payload){ found = payload.found || []; db = payload.db || {}; renderAll(); }
-  // restore autoplay
-  autoplay = localStorage.getItem('puzzled_autoplay') === '1';
-  autoplayToggle.textContent = 'Auto-play: ' + (autoplay? 'On' : 'Off');
-  // restore theme
-  applyTheme(localStorage.getItem('puzzled_theme')||'');
-  // open last opened if autoplay and exists
-  const last = localStorage.getItem('puzzled_last_opened');
-  if(last && autoplay){ openInIframe(last); }
-  // auto start if requested
-  if(AUTO_START) startScan();
-})();
+document.body.className = localStorage.getItem("theme") || "dark";
 
+stopScan.onclick = ()=>{ scanning = false; loader.innerText = "Stopped"; };
+rescan.onclick = ()=>location.reload();
+clearDB.onclick = ()=>{
+  localStorage.removeItem("puzzledDB");
+  location.reload();
+};
+
+/* ================================================================
+     START SCANNING
+================================================================ */
+startScan();
 </script>
+
 </body>
 </html>
+
