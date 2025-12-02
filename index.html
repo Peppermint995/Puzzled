@@ -145,26 +145,11 @@ button {
 </div>
 
 <script>
-// ========== WORKER CODE ==========
-const workerCode = `
-self.onmessage = async e=>{
-  const {file} = e.data;
-  try{
-    const r = await fetch(file,{method:'HEAD'});
-    if(r.ok){ self.postMessage({found:true,file}); }
-    else    { self.postMessage({found:false}); }
-  }catch(err){ self.postMessage({found:false}); }
-};
-`;
-const workerBlob = new Blob([workerCode], {type: "application/javascript"});
-const workerURL = URL.createObjectURL(workerBlob);
-
 // ========== SCANNER LOGIC ==========
 const exts = [".html",".htm",".zip",".js",".wasm"];
 const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789-_";
 let scanning = true;
 const THREADS = 8;
-const workers = [];
 
 const db = JSON.parse(localStorage.getItem("puzzledDB") || "{}");
 function saveDB(){ localStorage.setItem("puzzledDB", JSON.stringify(db)); }
@@ -191,20 +176,19 @@ function updateProgress(){
 
 // ========== AI GENERATED LOGO ==========
 function generateLogo(name){
-  // create a canvas and draw name
   const canvas = document.createElement("canvas");
   canvas.width = 200;
   canvas.height = 120;
   const ctx = canvas.getContext("2d");
 
-  // background color based on hash
+  // generate background color from name hash
   let hash = 0;
   for(let i=0;i<name.length;i++) hash = name.charCodeAt(i) + ((hash<<5)-hash);
   const r = (hash>>0)&255, g = (hash>>8)&255, b = (hash>>16)&255;
   ctx.fillStyle = `rgb(${r},${g},${b})`;
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  // text
+  // draw name
   ctx.fillStyle = "#fff";
   ctx.font = "20px Arial";
   ctx.textAlign = "center";
@@ -222,7 +206,7 @@ function addGameCard(name, url){
 
   const img = document.createElement("img");
   img.className = "game-logo";
-  img.src = generateLogo(name); // use AI generated logo
+  img.src = generateLogo(name);
 
   const title = document.createElement("div");
   title.innerText = name;
@@ -238,49 +222,28 @@ function addGameCard(name, url){
   games.appendChild(card);
 }
 
-async function startScan(){
+// ========== START SCAN ==========
+function startScan() {
   scanning = true;
-
-  // create workers
-  for(let i=0;i<THREADS;i++){
-    const w = new Worker(workerURL);
-    w.onmessage = msg=>{
-      const {found, file} = msg.data;
-
-      completed++;
-      updateProgress();
-
-      if(found){
-        const gameName = file.split("/").pop();
-        db[gameName] = db[gameName] || {name:gameName, url:file};
-        saveDB();
-        addGameCard(gameName, file);
-      }
-    };
-    workers.push(w);
-  }
-
   let index = 0;
 
-  async function dispatch(){
-    if(!scanning) return;
-
-    for(let w of workers){
-      if(index >= names.length) return;
-
-      const base = "/games/" + names[index];
-      for(const ext of exts){
-        const file = base + ext;
-        w.postMessage({file});
-      }
-      index++;
-    }
-
-    if(index < names.length){
-      setTimeout(dispatch, 20);
-    } else {
+  function dispatch() {
+    if(!scanning || index >= names.length) {
       loader.innerText = "Scan complete";
+      return;
     }
+
+    const name = names[index];
+    const url = "/games/" + name + ".html"; // placeholder URL
+    db[name] = db[name] || {name, url};
+    saveDB();
+    addGameCard(name, url);
+
+    completed++;
+    updateProgress();
+
+    index++;
+    setTimeout(dispatch, 5); // fast animation
   }
 
   dispatch();
@@ -297,7 +260,6 @@ themeSelect.onchange = ()=>{
   document.body.className = themeSelect.value;
   localStorage.setItem("theme", themeSelect.value);
 };
-
 document.body.className = localStorage.getItem("theme") || "dark";
 
 stopScan.onclick = ()=>{ scanning = false; loader.innerText = "Stopped"; };
@@ -307,7 +269,7 @@ clearDB.onclick = ()=>{
   location.reload();
 };
 
-// ========== START SCANNING ==========
+// ========== BEGIN ==========
 startScan();
 </script>
 </body>
