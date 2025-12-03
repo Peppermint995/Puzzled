@@ -3,9 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Puzzled.org (demo)</title>
-<p>There will be bugs</p>
+<title>Puzzled.org — Auto Game Scanner</title>
+
 <style>
+/* ---------- THEMES ---------- */
 :root {
   --bg: #0a0a0f;
   --card: #11151f;
@@ -32,6 +33,7 @@ body.glass {
   --blur: blur(16px);
 }
 
+/* ---------- GENERAL UI ---------- */
 body {
   margin: 0;
   font-family: Arial, sans-serif;
@@ -68,6 +70,7 @@ header {
   transition: width 0.1s;
 }
 
+/* ---------- GAME GRID ---------- */
 #games {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
@@ -98,6 +101,7 @@ header {
   object-fit: contain;
 }
 
+/* ---------- SETTINGS PANEL ---------- */
 #panel {
   position: fixed;
   top: 0; right: 0;
@@ -124,13 +128,14 @@ button {
 </head>
 
 <body class="dark">
-<header>Puzzled.org (demo)</header>
+<header>Puzzled.org — Auto Game Scanner</header>
 
-<div id="loader">Loading games…</div>
+<div id="loader">Scanning games…</div>
 <div class="progress"><div class="bar" id="progressBar"></div></div>
 
 <div id="games"></div>
 
+<!-- SETTINGS PANEL -->
 <div id="panel">
   <h3>Settings</h3>
   <select id="themeSelect">
@@ -139,17 +144,38 @@ button {
     <option value="glass">Glass</option>
   </select>
 
-  <button id="stopScan">Stop Loading</button>
-  <button id="rescan">Reload</button>
+  <button id="stopScan">Stop Scan</button>
+  <button id="rescan">Rescan</button>
   <button id="clearDB">Reset Database</button>
 </div>
 
 <script>
-// ========== SCANNER LOGIC ==========
+/* ================================================================
+     WORKER CODE — Encoded as a Blob so no worker.js file needed!
+================================================================ */
+const workerCode = `
+self.onmessage = async e=>{
+  const {file} = e.data;
+  try{
+    const r = await fetch(file,{method:'HEAD'});
+    if(r.ok){ self.postMessage({found:true,file}); }
+    else    { self.postMessage({found:false}); }
+  }catch(err){ self.postMessage({found:false}); }
+};
+`;
+
+const workerBlob = new Blob([workerCode], {type: "application/javascript"});
+const workerURL = URL.createObjectURL(workerBlob);
+
+/* ================================================================
+     MAIN SCANNER LOGIC
+================================================================ */
 const exts = [".html",".htm",".zip",".js",".wasm"];
 const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789-_";
 let scanning = true;
+const maxLength = 12;      // brute force length
 const THREADS = 8;
+const workers = [];
 
 const db = JSON.parse(localStorage.getItem("puzzledDB") || "{}");
 function saveDB(){ localStorage.setItem("puzzledDB", JSON.stringify(db)); }
@@ -158,7 +184,7 @@ function generateNames() {
   const out = ["index","game","play","start","main","run"];
   for (let i=0; i<alphabet.length; i++) {
     for (let j=0; j<alphabet.length; j++) {
-      out.push(alphabet[i]+alphabet[j]);
+      out.push(alphabet[i] + alphabet[j]);
     }
   }
   return out;
@@ -174,28 +200,8 @@ function updateProgress(){
   loader.innerText = `Scanning… ${Math.floor(pct)}%`;
 }
 
-// ========== AI GENERATED LOGO ==========
-function generateLogo(name){
-  const canvas = document.createElement("canvas");
-  canvas.width = 200;
-  canvas.height = 120;
-  const ctx = canvas.getContext("2d");
-
-  // generate background color from name hash
-  let hash = 0;
-  for(let i=0;i<name.length;i++) hash = name.charCodeAt(i) + ((hash<<5)-hash);
-  const r = (hash>>0)&255, g = (hash>>8)&255, b = (hash>>16)&255;
-  ctx.fillStyle = `rgb(${r},${g},${b})`;
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-
-  // draw name
-  ctx.fillStyle = "#fff";
-  ctx.font = "20px Arial";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(name, canvas.width/2, canvas.height/2);
-
-  return canvas.toDataURL();
+function detectLogo(gameURL){
+  return gameURL.replace(/\.(html|htm|js|zip|wasm)$/,"") + ".png";
 }
 
 function addGameCard(name, url){
@@ -206,7 +212,8 @@ function addGameCard(name, url){
 
   const img = document.createElement("img");
   img.className = "game-logo";
-  img.src = generateLogo(name);
+  img.src = detectLogo(url);
+  img.onerror = ()=>{ img.style.display="none"; };
 
   const title = document.createElement("div");
   title.innerText = name;
@@ -222,44 +229,70 @@ function addGameCard(name, url){
   games.appendChild(card);
 }
 
-// ========== START SCAN ==========
-function startScan() {
+async function startScan(){
   scanning = true;
+
+  // create workers
+  for(let i=0;i<THREADS;i++){
+    const w = new Worker(workerURL);
+    w.onmessage = msg=>{
+      const {found, file} = msg.data;
+
+      completed++;
+      updateProgress();
+
+      if(found){
+        const gameName = file.split("/").pop();
+        db[gameName] = db[gameName] || {name:gameName, url:file};
+        saveDB();
+        addGameCard(gameName, file);
+      }
+    };
+    workers.push(w);
+  }
+
   let index = 0;
 
-  function dispatch() {
-    if(!scanning || index >= names.length) {
-      loader.innerText = "Scan complete";
-      return;
+  async function dispatch(){
+    if(!scanning) return;
+
+    for(let w of workers){
+      if(index >= names.length) return;
+
+      const base = "/games/" + names[index];
+      for(const ext of exts){
+        const file = base + ext;
+        w.postMessage({file});
+      }
+      index++;
     }
 
-    const name = names[index];
-    const url = "/games/" + name + ".html"; // placeholder URL
-    db[name] = db[name] || {name, url};
-    saveDB();
-    addGameCard(name, url);
-
-    completed++;
-    updateProgress();
-
-    index++;
-    setTimeout(dispatch, 5); // fast animation
+    if(index < names.length){
+      setTimeout(dispatch, 20);
+    } else {
+      loader.innerText = "Scan complete";
+    }
   }
 
   dispatch();
 }
 
-// ========== AUTO-PLAY LAST GAME ==========
+/* ================================================================
+     AUTO-PLAY LAST GAME
+================================================================ */
 const last = localStorage.getItem("lastGame");
 if(last){
   setTimeout(()=>window.location.href = last, 1500);
 }
 
-// ========== SETTINGS ==========
+/* ================================================================
+     SETTINGS
+================================================================ */
 themeSelect.onchange = ()=>{
   document.body.className = themeSelect.value;
   localStorage.setItem("theme", themeSelect.value);
 };
+
 document.body.className = localStorage.getItem("theme") || "dark";
 
 stopScan.onclick = ()=>{ scanning = false; loader.innerText = "Stopped"; };
@@ -269,8 +302,11 @@ clearDB.onclick = ()=>{
   location.reload();
 };
 
-// ========== BEGIN ==========
+/* ================================================================
+     START SCANNING
+================================================================ */
 startScan();
-<script src="games.js"></script>
+</script>
+
 </body>
 </html>
